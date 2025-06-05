@@ -44,16 +44,14 @@ class UserRegistrationView(generics.CreateAPIView):
                 'tokens': {
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
-                }
+                },
+                'preferences': {}
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserLoginView(generics.GenericAPIView):
-    """
-    Vista para login de usuarios
-    """
     serializer_class = UserLoginSerializer
     permission_classes = (AllowAny,)
 
@@ -101,9 +99,6 @@ class UserLoginView(generics.GenericAPIView):
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
-    """
-    Vista para obtener y actualizar perfil de usuario
-    """
     serializer_class = UserSerializer
     permission_classes = (IsAuthenticated,)
 
