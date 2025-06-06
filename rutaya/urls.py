@@ -7,8 +7,10 @@ from drf_yasg import openapi
 from .views import (
     UserRegistrationView,
     UserLoginView,
-    UserProfileView,
-    logout_view
+    logout_view,
+    get_categories_with_destinations,
+    add_to_favorites,
+    remove_from_favorites,
 )
 from . import views
 
@@ -34,17 +36,11 @@ urlpatterns = [
     path('api/v1/auth/register/', UserRegistrationView.as_view(), name='user-register'),
     path('api/v1/auth/login/', UserLoginView.as_view(), name='user-login'),
     path('api/v1/auth/logout/', logout_view, name='user-logout'),
-    path('api/v1/auth/profile/', UserProfileView.as_view(), name='user-profile'),
 
-    # Category endpoints
-    path('api/categories/', views.category_list, name='category-list'),
-    path('api/categories/<int:pk>/', views.category_detail, name='category-detail'),
+    path('api/v1/categories/<int:user_id>/', get_categories_with_destinations, name='categories-destinations'),
 
-    # Destination endpoints
-    path('api/destinations/', views.destination_list, name='destination-list'),
-    path('api/destinations/<int:pk>/', views.destination_detail, name='destination-detail'),
-    path('api/categories/<int:category_id>/destinations/', views.destinations_by_category,
-         name='destinations-by-category'),
+    path('api/v1/favorites/add/', add_to_favorites, name='add-favorite'),
+    path('api/v1/favorites/remove/', remove_from_favorites, name='remove-favorite'),
 
     # Documentación API
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),

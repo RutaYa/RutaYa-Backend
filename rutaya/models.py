@@ -44,8 +44,6 @@ class User(AbstractUser):
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Category"
@@ -63,14 +61,25 @@ class Destination(models.Model):
     image_url = models.URLField(max_length=500, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='destinations')
     description = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Destination"
         verbose_name_plural = "Destinations"
-        ordering = ['-created_at']
         db_table = 'destinations'
 
     def __str__(self):
         return f"{self.name} - {self.location}"
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorites')
+    destination = models.ForeignKey(Destination, on_delete=models.CASCADE, related_name='favorited_by')
+
+    class Meta:
+        unique_together = ('user', 'destination')  # Un usuario no puede marcar el mismo destino dos veces
+        verbose_name = "Favorite"
+        verbose_name_plural = "Favorites"
+        db_table = 'favorites'
+
+    def __str__(self):
+        return f"{self.user.username} - {self.destination.name}"
