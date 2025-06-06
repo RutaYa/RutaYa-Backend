@@ -3,18 +3,18 @@ from rest_framework import status, generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserSerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserSerializer, FavoriteActionSerializer
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from .models import Category, Destination
-from .serializers import CategorySerializer, DestinationSerializer, DestinationCreateSerializer
 from django.db import models
 from django.db.models import Q
 from .models import User, Category, Destination, Favorite
@@ -210,65 +210,47 @@ def get_categories_with_destinations(request, user_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@swagger_auto_schema(
-    operation_description="Agregar destino a favoritos",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'userId': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID del usuario'),
-            'destinationId': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID del destino')
-        },
-        required=['userId', 'destinationId']
-    ),
-    responses={
-        201: openapi.Response(
-            description="Destino agregado a favoritos exitosamente",
-            examples={
-                "application/json": {
-                    "message": "Destino agregado a favoritos exitosamente",
-                    "favorite": {
-                        "id": 1,
-                        "userId": 1,
-                        "destinationId": 5,
-                        "destination_name": "Playa Bonita",
-                        "user_email": "usuario@example.com"
+class AddToFavoritesView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=FavoriteActionSerializer,
+        operation_description="Agregar destino a favoritos",
+        responses={
+            201: openapi.Response(
+                description="Destino agregado a favoritos exitosamente",
+                examples={
+                    "application/json": {
+                        "message": "Destino agregado a favoritos exitosamente",
+                        "favorite": {
+                            "id": 1,
+                            "userId": 1,
+                            "destinationId": 5,
+                            "destination_name": "Playa Bonita",
+                            "user_email": "usuario@example.com"
+                        }
                     }
                 }
-            }
-        ),
-        400: "Error de validación o destino ya está en favoritos",
-        404: "Usuario o destino no encontrado"
-    }
-)
-def add_to_favorites(request):
-    """
-    Vista para agregar un destino a favoritos
-    """
-    try:
-        user_id = request.data.get('userId')
-        destination_id = request.data.get('destinationId')
+            ),
+            400: "Error de validación o destino ya está en favoritos",
+        }
+    )
+    def post(self, request):
+        serializer = FavoriteActionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validar que se enviaron los datos requeridos
-        if not user_id or not destination_id:
-            return Response({
-                'error': 'userId y destinationId son requeridos'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        user_id = serializer.validated_data['userId']
+        destination_id = serializer.validated_data['destinationId']
 
-        # Verificar que el usuario existe
-        user = get_object_or_404(User, id=user_id)
+        user = User.objects.get(id=user_id)
+        destination = Destination.objects.get(id=destination_id)
 
-        # Verificar que el destino existe
-        destination = get_object_or_404(Destination, id=destination_id)
-
-        # Verificar si ya existe en favoritos
         if Favorite.objects.filter(user=user, destination=destination).exists():
             return Response({
                 'error': 'Este destino ya está en favoritos'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Crear el favorito
         favorite = Favorite.objects.create(user=user, destination=destination)
 
         return Response({
@@ -282,72 +264,42 @@ def add_to_favorites(request):
             }
         }, status=status.HTTP_201_CREATED)
 
-    except User.DoesNotExist:
-        return Response({
-            'error': 'Usuario no encontrado'
-        }, status=status.HTTP_404_NOT_FOUND)
-    except Destination.DoesNotExist:
-        return Response({
-            'error': 'Destino no encontrado'
-        }, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({
-            'error': 'Error interno del servidor'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class RemoveFromFavoritesView(APIView):
+    permission_classes = [AllowAny]
 
-
-@api_view(['DELETE'])
-@permission_classes([AllowAny])
-@swagger_auto_schema(
-    operation_description="Eliminar destino de favoritos",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'userId': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID del usuario'),
-            'destinationId': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID del destino')
-        },
-        required=['userId', 'destinationId']
-    ),
-    responses={
-        200: openapi.Response(
-            description="Destino eliminado de favoritos exitosamente",
-            examples={
-                "application/json": {
-                    "message": "Destino eliminado de favoritos exitosamente",
-                    "removed": {
-                        "userId": 1,
-                        "destinationId": 5,
-                        "destination_name": "Playa Bonita",
-                        "user_email": "usuario@example.com"
+    @swagger_auto_schema(
+        request_body=FavoriteActionSerializer,
+        operation_description="Eliminar destino de favoritos",
+        responses={
+            200: openapi.Response(
+                description="Destino eliminado de favoritos exitosamente",
+                examples={
+                    "application/json": {
+                        "message": "Destino eliminado de favoritos exitosamente",
+                        "removed": {
+                            "userId": 1,
+                            "destinationId": 5,
+                            "destination_name": "Playa Bonita",
+                            "user_email": "usuario@example.com"
+                        }
                     }
                 }
-            }
-        ),
-        400: "Error de validación",
-        404: "Usuario, destino o favorito no encontrado"
-    }
-)
-def remove_from_favorites(request):
-    """
-    Vista para eliminar un destino de favoritos
-    """
-    try:
-        user_id = request.data.get('userId')
-        destination_id = request.data.get('destinationId')
+            ),
+            400: "Error de validación",
+            404: "Favorito no encontrado"
+        }
+    )
+    def delete(self, request):
+        serializer = FavoriteActionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validar que se enviaron los datos requeridos
-        if not user_id or not destination_id:
-            return Response({
-                'error': 'userId y destinationId son requeridos'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        user_id = serializer.validated_data['userId']
+        destination_id = serializer.validated_data['destinationId']
 
-        # Verificar que el usuario existe
-        user = get_object_or_404(User, id=user_id)
+        user = User.objects.get(id=user_id)
+        destination = Destination.objects.get(id=destination_id)
 
-        # Verificar que el destino existe
-        destination = get_object_or_404(Destination, id=destination_id)
-
-        # Buscar y eliminar el favorito
         try:
             favorite = Favorite.objects.get(user=user, destination=destination)
             favorite.delete()
@@ -367,18 +319,6 @@ def remove_from_favorites(request):
                 'error': 'Este destino no está en favoritos'
             }, status=status.HTTP_404_NOT_FOUND)
 
-    except User.DoesNotExist:
-        return Response({
-            'error': 'Usuario no encontrado'
-        }, status=status.HTTP_404_NOT_FOUND)
-    except Destination.DoesNotExist:
-        return Response({
-            'error': 'Destino no encontrado'
-        }, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({
-            'error': 'Error interno del servidor'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

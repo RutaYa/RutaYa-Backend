@@ -49,36 +49,16 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'date_joined')
 
 
-class CategorySerializer(serializers.ModelSerializer):
-    destinations_count = serializers.SerializerMethodField()
+class FavoriteActionSerializer(serializers.Serializer):
+    userId = serializers.IntegerField()
+    destinationId = serializers.IntegerField()
 
-    class Meta:
-        model = Category
-        fields = ['id', 'name', 'destinations_count']
+    def validate_userId(self, value):
+        if not User.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Usuario no encontrado.")
+        return value
 
-    def get_destinations_count(self, obj):
-        return obj.destinations.count()
-
-
-class DestinationSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
-
-    class Meta:
-        model = Destination
-        fields = [
-            'id',
-            'name',
-            'location',
-            'image_url',
-            'category',
-            'category_name',
-            'description',
-            'created_at',
-            'updated_at'
-        ]
-
-
-class DestinationCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Destination
-        fields = ['name', 'location', 'image_url', 'category', 'description']
+    def validate_destinationId(self, value):
+        if not Destination.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Destino no encontrado.")
+        return value

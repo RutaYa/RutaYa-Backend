@@ -9,8 +9,8 @@ from .views import (
     UserLoginView,
     logout_view,
     get_categories_with_destinations,
-    add_to_favorites,
-    remove_from_favorites,
+    AddToFavoritesView,
+    RemoveFromFavoritesView
 )
 from . import views
 
@@ -39,8 +39,8 @@ urlpatterns = [
 
     path('api/v1/categories/<int:user_id>/', get_categories_with_destinations, name='categories-destinations'),
 
-    path('api/v1/favorites/add/', add_to_favorites, name='add-favorite'),
-    path('api/v1/favorites/remove/', remove_from_favorites, name='remove-favorite'),
+    path('api/v1/favorites/add/', AddToFavoritesView.as_view(), name='add-favorite'),
+    path('api/v1/favorites/remove/', RemoveFromFavoritesView.as_view(), name='remove-favorite'),
 
     # Documentación API
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
