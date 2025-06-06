@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from .models import User
+from .models import User, Category, Destination
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -47,3 +47,38 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'date_joined')
         read_only_fields = ('id', 'date_joined')
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    destinations_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'destinations_count']
+
+    def get_destinations_count(self, obj):
+        return obj.destinations.count()
+
+
+class DestinationSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+
+    class Meta:
+        model = Destination
+        fields = [
+            'id',
+            'name',
+            'location',
+            'image_url',
+            'category',
+            'category_name',
+            'description',
+            'created_at',
+            'updated_at'
+        ]
+
+
+class DestinationCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Destination
+        fields = ['name', 'location', 'image_url', 'category', 'description']

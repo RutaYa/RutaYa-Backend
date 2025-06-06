@@ -10,6 +10,7 @@ from .views import (
     UserProfileView,
     logout_view
 )
+from . import views
 
 # Configuración de Swagger
 schema_view = get_schema_view(
@@ -34,6 +35,16 @@ urlpatterns = [
     path('api/v1/auth/login/', UserLoginView.as_view(), name='user-login'),
     path('api/v1/auth/logout/', logout_view, name='user-logout'),
     path('api/v1/auth/profile/', UserProfileView.as_view(), name='user-profile'),
+
+    # Category endpoints
+    path('api/categories/', views.category_list, name='category-list'),
+    path('api/categories/<int:pk>/', views.category_detail, name='category-detail'),
+
+    # Destination endpoints
+    path('api/destinations/', views.destination_list, name='destination-list'),
+    path('api/destinations/<int:pk>/', views.destination_detail, name='destination-detail'),
+    path('api/categories/<int:category_id>/destinations/', views.destinations_by_category,
+         name='destinations-by-category'),
 
     # Documentación API
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),

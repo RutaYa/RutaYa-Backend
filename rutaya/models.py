@@ -40,3 +40,37 @@ class User(AbstractUser):
 
     class Meta:
         db_table = 'users'
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+        ordering = ['name']
+        db_table = 'categories'
+
+    def __str__(self):
+        return self.name
+
+
+class Destination(models.Model):
+    name = models.CharField(max_length=200)
+    location = models.CharField(max_length=100)
+    image_url = models.URLField(max_length=500, blank=True, null=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='destinations')
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Destination"
+        verbose_name_plural = "Destinations"
+        ordering = ['-created_at']
+        db_table = 'destinations'
+
+    def __str__(self):
+        return f"{self.name} - {self.location}"
