@@ -10,7 +10,8 @@ from .views import (
     logout_view,
     get_categories_with_destinations,
     AddToFavoritesView,
-    RemoveFromFavoritesView
+    RemoveFromFavoritesView,
+    get_home_data
 )
 from . import views
 
@@ -38,6 +39,8 @@ urlpatterns = [
     path('api/v1/auth/logout/', logout_view, name='user-logout'),
 
     path('api/v1/categories/<int:user_id>/', get_categories_with_destinations, name='categories-destinations'),
+
+    path('api/v1/home/<int:user_id>/', get_home_data, name='home-data'),
 
     path('api/v1/favorites/add/', AddToFavoritesView.as_view(), name='add-favorite'),
     path('api/v1/favorites/remove/', RemoveFromFavoritesView.as_view(), name='remove-favorite'),

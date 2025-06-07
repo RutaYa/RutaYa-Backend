@@ -1,23 +1,24 @@
 # rutaya/views.py
-from rest_framework import status, generics
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import generics
+from rest_framework.decorators import permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
+import random
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserSerializer, FavoriteActionSerializer
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from .models import Category, Destination
 from django.db import models
 from django.db.models import Q
 from .models import User, Category, Destination, Favorite
+from django.db.models import Count
 
 class UserRegistrationView(generics.CreateAPIView):
     """
@@ -197,6 +198,188 @@ def get_categories_with_destinations(request, user_id):
 
         return Response({
             'message': 'Categorías obtenidas exitosamente',
+            'categories': categories_data
+        }, status=status.HTTP_200_OK)
+
+    except User.DoesNotExist:
+        return Response({
+            'error': 'Usuario no encontrado'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': 'Error interno del servidor'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@swagger_auto_schema(
+    operation_description="Obtener todos los datos necesarios para la pantalla Home",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="ID del usuario para personalizar la experiencia",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="Datos del home obtenidos exitosamente",
+            examples={
+                "application/json": {
+                    "message": "Datos del home obtenidos exitosamente",
+                    "suggestions": [
+                        {
+                            "id": 1,
+                            "name": "Playa Bonita",
+                            "location": "Cancún",
+                            "description": "Una hermosa playa...",
+                            "image_url": "https://example.com/playa.jpg",
+                            "isFavorite": True
+                        }
+                    ],
+                    "popular": [
+                        {
+                            "id": 2,
+                            "name": "Machu Picchu",
+                            "location": "Cusco",
+                            "description": "Ciudadela inca...",
+                            "image_url": "https://example.com/machu.jpg",
+                            "isFavorite": False,
+                            "favorites_count": 25
+                        }
+                    ],
+                    "categories": [
+                        {
+                            "id": 1,
+                            "name": "Playas",
+                            "destinations": [
+                                {
+                                    "id": 1,
+                                    "name": "Playa Bonita",
+                                    "location": "Cancún",
+                                    "description": "Una hermosa playa...",
+                                    "image_url": "https://example.com/playa.jpg",
+                                    "isFavorite": True
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ),
+        404: "Usuario no encontrado"
+    }
+)
+def get_home_data(request, user_id):
+    """
+    Vista consolidada para obtener todos los datos del home:
+    - Sugerencias para ti (8 destinos random)
+    - Más populares (4 destinos más agregados a favoritos)
+    - Categorías con destinos ordenadas por ID
+    """
+    try:
+        # Verificar que el usuario existe
+        user = get_object_or_404(User, id=user_id)
+
+        # Obtener los IDs de destinos favoritos del usuario
+        favorite_destination_ids = set(
+            Favorite.objects.filter(user=user).values_list('destination_id', flat=True)
+        )
+
+        # 1. SUGERENCIAS PARA TI - 8 destinos random
+        all_destinations = list(Destination.objects.all())
+        suggestions_destinations = random.sample(
+            all_destinations,
+            min(8, len(all_destinations))
+        )
+
+        suggestions_data = []
+        for destination in suggestions_destinations:
+            suggestions_data.append({
+                'id': destination.id,
+                'name': destination.name,
+                'location': destination.location,
+                'description': destination.description,
+                'image_url': destination.image_url,
+                'isFavorite': destination.id in favorite_destination_ids
+            })
+
+        # 2. MÁS POPULARES - 4 destinos más agregados a favoritos
+        # Obtener destinos con count de favoritos, ordenados por popularidad
+        popular_destinations = Destination.objects.annotate(
+            favorites_count=Count('favorited_by')
+        ).order_by('-favorites_count')
+
+        # Tomar los primeros 4 (o los que haya)
+        popular_with_favorites = list(popular_destinations.filter(favorites_count__gt=0)[:4])
+
+        # Si faltan destinos, completar con randoms
+        if len(popular_with_favorites) < 4:
+            remaining_count = 4 - len(popular_with_favorites)
+            used_ids = [dest.id for dest in popular_with_favorites]
+
+            available_destinations = [
+                dest for dest in all_destinations
+                if dest.id not in used_ids
+            ]
+
+            if available_destinations:
+                random_destinations = random.sample(
+                    available_destinations,
+                    min(remaining_count, len(available_destinations))
+                )
+
+                # Agregar count de favoritos para los randoms
+                for dest in random_destinations:
+                    dest.favorites_count = Favorite.objects.filter(destination=dest).count()
+
+                popular_with_favorites.extend(random_destinations)
+
+        popular_data = []
+        for destination in popular_with_favorites:
+            popular_data.append({
+                'id': destination.id,
+                'name': destination.name,
+                'location': destination.location,
+                'description': destination.description,
+                'image_url': destination.image_url,
+                'isFavorite': destination.id in favorite_destination_ids,
+                'favorites_count': getattr(destination, 'favorites_count', 0)
+            })
+
+        # 3. CATEGORÍAS CON DESTINOS - ordenadas por ID ascendente
+        categories = Category.objects.prefetch_related('destinations').order_by('id')
+
+        categories_data = []
+        for category in categories:
+            destinations_data = []
+
+            # Ordenar destinos por ID ascendente también
+            for destination in category.destinations.order_by('id'):
+                destination_dict = {
+                    'id': destination.id,
+                    'name': destination.name,
+                    'location': destination.location,
+                    'description': destination.description,
+                    'image_url': destination.image_url,
+                    'isFavorite': destination.id in favorite_destination_ids
+                }
+                destinations_data.append(destination_dict)
+
+            category_dict = {
+                'id': category.id,
+                'name': category.name,
+                'destinations': destinations_data
+            }
+            categories_data.append(category_dict)
+
+        return Response({
+            'message': 'Datos del home obtenidos exitosamente',
+            'suggestions': suggestions_data,
+            'popular': popular_data,
             'categories': categories_data
         }, status=status.HTTP_200_OK)
 
