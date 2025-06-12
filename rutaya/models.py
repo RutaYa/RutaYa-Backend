@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.conf import settings
 
 
 class User(AbstractUser):
@@ -54,6 +55,23 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+class TravelAvailability(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='travel_availabilities'
+    )
+    date = models.DateField()
+
+    class Meta:
+        unique_together = ('user', 'date')
+        ordering = ['date']
+        db_table = 'travel_availabilities'
+        verbose_name = 'Travel Availability'
+        verbose_name_plural = 'Travel Availabilities'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.date}"
 
 class Destination(models.Model):
     name = models.CharField(max_length=200)

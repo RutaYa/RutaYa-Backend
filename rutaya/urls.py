@@ -11,7 +11,8 @@ from .views import (
     get_categories_with_destinations,
     AddToFavoritesView,
     RemoveFromFavoritesView,
-    get_home_data
+    get_home_data,
+    save_travel_availability
 )
 from . import views
 
@@ -44,6 +45,8 @@ urlpatterns = [
 
     path('api/v1/favorites/add/', AddToFavoritesView.as_view(), name='add-favorite'),
     path('api/v1/favorites/remove/', RemoveFromFavoritesView.as_view(), name='remove-favorite'),
+
+    path('api/v1/travels-availability/add/', save_travel_availability, name='save-travel-availability'),
 
     # Documentación API
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),

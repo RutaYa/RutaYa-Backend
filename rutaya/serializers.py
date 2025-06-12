@@ -62,3 +62,29 @@ class FavoriteActionSerializer(serializers.Serializer):
         if not Destination.objects.filter(id=value).exists():
             raise serializers.ValidationError("Destino no encontrado.")
         return value
+
+class TravelAvailabilitySerializer(serializers.Serializer):
+    userId = serializers.IntegerField()
+    dates = serializers.ListField(
+        child=serializers.DateField(format="%Y-%m-%d"),
+        allow_empty=False
+    )
+
+    def validate_userId(self, value):
+        if not User.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Usuario no encontrado.")
+        return value
+
+    def create(self, validated_data):
+        user_id = validated_data['userId']
+        dates = validated_data['dates']
+        user = User.objects.get(id=user_id)
+
+        # Eliminar fechas anteriores (puedes cambiar este comportamiento)
+        TravelAvailability.objects.filter(user=user).delete()
+
+        # Crear nuevas fechas
+        new_entries = [TravelAvailability(user=user, date=d) for d in dates]
+        TravelAvailability.objects.bulk_create(new_entries)
+
+        return validated_data

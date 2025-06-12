@@ -9,7 +9,7 @@ from django.contrib.auth import login
 import random
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserSerializer, FavoriteActionSerializer
+from .serializers import *
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -501,6 +501,82 @@ class RemoveFromFavoritesView(APIView):
             return Response({
                 'error': 'Este destino no está en favoritos'
             }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@swagger_auto_schema(
+    operation_description="Guardar múltiples fechas de disponibilidad de viaje.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'dates': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
+                description='Lista de fechas en formato YYYY-MM-DD'
+            )
+        },
+        required=['dates']
+    ),
+    responses={
+        201: "Fechas guardadas exitosamente",
+        400: "Datos inválidos",
+        401: "No autenticado"
+    }
+)
+def save_travel_availability(request):
+    """
+    Vista para guardar múltiples fechas de disponibilidad de viaje.
+    """
+    try:
+        dates = request.data.get('dates', [])
+
+        if not dates:
+            return Response(
+                {"error": "Se requiere al menos una fecha"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        created_dates = []
+        existing_dates = []
+        invalid_dates = []
+
+        for date_str in dates:
+            try:
+                # Validar formato de fecha
+                from datetime import datetime
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+                # Verificar si ya existe
+                if TravelAvailability.objects.filter(user=request.user, date=date_obj).exists():
+                    existing_dates.append(date_str)
+                    continue
+
+                # Crear nueva disponibilidad
+                TravelAvailability.objects.create(user=request.user, date=date_obj)
+                created_dates.append(date_str)
+
+            except ValueError:
+                invalid_dates.append(date_str)
+
+        response_data = {
+            "message": f"Procesadas {len(dates)} fechas",
+            "created": created_dates,
+            "existing": existing_dates,
+            "invalid": invalid_dates
+        }
+
+        if created_dates:
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": "Error interno del servidor", "message": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 
 @api_view(['POST'])
