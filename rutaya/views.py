@@ -17,7 +17,7 @@ from django.shortcuts import get_object_or_404
 from .models import Category, Destination
 from django.db import models
 from django.db.models import Q
-from .models import User, Category, Destination, Favorite
+from .models import User, Category, Destination, Favorite, TravelAvailability
 from django.db.models import Count
 
 class UserRegistrationView(generics.CreateAPIView):
@@ -504,79 +504,106 @@ class RemoveFromFavoritesView(APIView):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
-@swagger_auto_schema(
-    operation_description="Guardar múltiples fechas de disponibilidad de viaje.",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'dates': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
-                description='Lista de fechas en formato YYYY-MM-DD'
-            )
-        },
-        required=['dates']
-    ),
-    responses={
-        201: "Fechas guardadas exitosamente",
-        400: "Datos inválidos",
-        401: "No autenticado"
-    }
-)
+@permission_classes([AllowAny])  # Permitir acceso sin autenticación
 def save_travel_availability(request):
     """
-    Vista para guardar múltiples fechas de disponibilidad de viaje.
+    Vista para guardar múltiples fechas de disponibilidad de viaje usando userId.
     """
     try:
-        dates = request.data.get('dates', [])
+        print("=== INICIO DE PETICIÓN POST /travels/add/ ===")
+        print(f"Datos recibidos: {request.data}")
 
-        if not dates:
+        # Usar el serializer para validar y procesar los datos
+        serializer = TravelAvailabilitySerializer(data=request.data)
+
+        if serializer.is_valid():
+            print("✅ Datos válidos, procesando...")
+
+            # El serializer ya maneja toda la lógica
+            validated_data = serializer.save()
+
+            response_data = {
+                "message": f"Fechas guardadas exitosamente para el usuario {validated_data['userId']}",
+                "userId": validated_data['userId'],
+                "dates": [str(date) for date in validated_data['dates']]
+            }
+
+            print("=== FIN DE PROCESAMIENTO EXITOSO ===")
+            print(response_data)
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
+        else:
+            print("❌ Datos inválidos:")
+            print(serializer.errors)
             return Response(
-                {"error": "Se requiere al menos una fecha"},
+                {"error": "Datos inválidos", "details": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        created_dates = []
-        existing_dates = []
-        invalid_dates = []
-
-        for date_str in dates:
-            try:
-                # Validar formato de fecha
-                from datetime import datetime
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-
-                # Verificar si ya existe
-                if TravelAvailability.objects.filter(user=request.user, date=date_obj).exists():
-                    existing_dates.append(date_str)
-                    continue
-
-                # Crear nueva disponibilidad
-                TravelAvailability.objects.create(user=request.user, date=date_obj)
-                created_dates.append(date_str)
-
-            except ValueError:
-                invalid_dates.append(date_str)
-
-        response_data = {
-            "message": f"Procesadas {len(dates)} fechas",
-            "created": created_dates,
-            "existing": existing_dates,
-            "invalid": invalid_dates
-        }
-
-        if created_dates:
-            return Response(response_data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(response_data, status=status.HTTP_200_OK)
-
     except Exception as e:
+        print("❌ Error inesperado:", e)
+        import traceback
+        traceback.print_exc()
         return Response(
             {"error": "Error interno del servidor", "message": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@swagger_auto_schema(
+    operation_description="Obtener fechas de disponibilidad de viaje de un usuario",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="ID del usuario",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="Fechas obtenidas exitosamente",
+            examples={
+                "application/json": {
+                    "userId": 5,
+                    "dates": [
+                        "2024-07-01",
+                        "2024-07-02",
+                        "2024-07-03"
+                    ]
+                }
+            }
+        ),
+        404: "Usuario no encontrado",
+        500: "Error interno del servidor"
+    }
+)
+def get_travel_availability(request, user_id):
+    """
+    Vista para obtener fechas de disponibilidad de viaje de un usuario.
+    """
+    try:
+        user = get_object_or_404(User, id=user_id)
+
+        # Obtener fechas ordenadas
+        travel_dates = TravelAvailability.objects.filter(user=user).order_by('date')
+
+        dates = [availability.date.isoformat() for availability in travel_dates]
+
+        return Response({
+            "userId": user.id,
+            "dates": dates
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
