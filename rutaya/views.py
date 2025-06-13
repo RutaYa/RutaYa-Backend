@@ -510,14 +510,11 @@ def save_travel_availability(request):
     Vista para guardar múltiples fechas de disponibilidad de viaje usando userId.
     """
     try:
-        print("=== INICIO DE PETICIÓN POST /travels/add/ ===")
-        print(f"Datos recibidos: {request.data}")
 
         # Usar el serializer para validar y procesar los datos
         serializer = TravelAvailabilitySerializer(data=request.data)
 
         if serializer.is_valid():
-            print("✅ Datos válidos, procesando...")
 
             # El serializer ya maneja toda la lógica
             validated_data = serializer.save()
@@ -528,14 +525,9 @@ def save_travel_availability(request):
                 "dates": [str(date) for date in validated_data['dates']]
             }
 
-            print("=== FIN DE PROCESAMIENTO EXITOSO ===")
-            print(response_data)
-
             return Response(response_data, status=status.HTTP_201_CREATED)
 
         else:
-            print("❌ Datos inválidos:")
-            print(serializer.errors)
             return Response(
                 {"error": "Datos inválidos", "details": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
