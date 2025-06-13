@@ -91,13 +91,13 @@ class TravelAvailabilitySerializer(serializers.Serializer):
 
 
 class messageInputSerializer(serializers.Serializer):
+    userId = serializers.IntegerField(required=True)
     currentMessage = serializers.CharField()
     previousMessages = serializers.ListField(
         child=serializers.DictField(), required=False
     )
-    memoryBank = serializers.ListField(
-        child=serializers.DictField(), required=False
-    )
+    memoryBank = serializers.DictField(required=False)
+
 
 
 class UserPreferencesSerializer(serializers.ModelSerializer):

@@ -609,6 +609,7 @@ def get_travel_availability(request, user_id):
 
 class ProcessIaMessageView(generics.CreateAPIView):
     serializer_class = messageInputSerializer
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
