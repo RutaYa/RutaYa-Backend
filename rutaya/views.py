@@ -92,13 +92,17 @@ class UserLoginView(generics.GenericAPIView):
             # Generar tokens JWT
             refresh = RefreshToken.for_user(user)
 
+            # Verificar si el usuario tiene preferencias registradas
+            has_preferences = UserPreferences.objects.filter(user=user).exists()
+
             return Response({
                 'message': 'Login exitoso',
                 'user': UserSerializer(user).data,
                 'tokens': {
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
-                }
+                },
+                "hasPreferences": has_preferences
             }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
