@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from .models import User, Category, Destination, TravelAvailability
+from .models import User, Category, Destination, TravelAvailability, UserPreferences
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -88,3 +88,63 @@ class TravelAvailabilitySerializer(serializers.Serializer):
         TravelAvailability.objects.bulk_create(new_entries)
 
         return validated_data
+
+
+class messageInputSerializer(serializers.Serializer):
+    currentMessage = serializers.CharField()
+    previousMessages = serializers.ListField(
+        child=serializers.DictField(), required=False
+    )
+    memoryBank = serializers.ListField(
+        child=serializers.DictField(), required=False
+    )
+
+
+class UserPreferencesSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = UserPreferences
+        fields = [
+            'user_id', 'birth_date', 'gender', 'travel_interests',
+            'preferred_environment', 'travel_style', 'budget_range',
+            'adrenaline_level', 'wants_hidden_places'
+        ]
+
+    def validate_user_id(self, value):
+        """Validar que el usuario existe"""
+        try:
+            User.objects.get(id=value)
+            return value
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Usuario no encontrado")
+
+    def validate_travel_interests(self, value):
+        """Validar que no se seleccionen más de 2 intereses"""
+        if len(value) > 2:
+            raise serializers.ValidationError("Solo puedes seleccionar máximo 2 intereses")
+
+        return value
+
+    def validate_adrenaline_level(self, value):
+        """Validar que el nivel de adrenalina esté entre 1 y 10"""
+        if not (1 <= value <= 10):
+            raise serializers.ValidationError("El nivel de adrenalina debe estar entre 1 y 10")
+        return value
+
+    def create(self, validated_data):
+        """Crear o actualizar preferencias del usuario"""
+        user_id = validated_data.pop('user_id')
+        user = User.objects.get(id=user_id)
+
+        # Usar update_or_create para reemplazar si ya existe
+        preferences, created = UserPreferences.objects.update_or_create(
+            user=user,
+            defaults=validated_data
+        )
+
+        return {
+            'userId': user.id,
+            'preferences': preferences,
+            'created': created
+        }

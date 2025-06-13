@@ -14,11 +14,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import Category, Destination
-from django.db import models
-from django.db.models import Q
 from .models import User, Category, Destination, Favorite, TravelAvailability
 from django.db.models import Count
+from rutaya.utils.gemini_api import send_message
 
 class UserRegistrationView(generics.CreateAPIView):
     """
@@ -104,6 +102,7 @@ class UserLoginView(generics.GenericAPIView):
             }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # Agregar esta vista a tu views.py
@@ -597,6 +596,181 @@ def get_travel_availability(request, user_id):
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class ProcessIaMessageView(generics.CreateAPIView):
+    serializer_class = messageInputSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                answer = send_message(serializer.validated_data)
+                return Response({"botMessage": answer}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@swagger_auto_schema(
+    operation_description="Guardar preferencias de usuario",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['user_id', 'travel_interests', 'adrenaline_level'],
+        properties={
+            'user_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID del usuario'),
+            'birth_date': openapi.Schema(type=openapi.TYPE_STRING, format='date',
+                                         description='Fecha de nacimiento (YYYY-MM-DD)'),
+            'gender': openapi.Schema(type=openapi.TYPE_STRING, description='Género del usuario'),
+            'travel_interests': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(type=openapi.TYPE_STRING),
+                description='Lista de intereses de viaje (máximo 2)'
+            ),
+            'preferred_environment': openapi.Schema(type=openapi.TYPE_STRING, description='Ambiente preferido'),
+            'travel_style': openapi.Schema(type=openapi.TYPE_STRING, description='Estilo de viaje'),
+            'budget_range': openapi.Schema(type=openapi.TYPE_STRING, description='Rango de presupuesto'),
+            'adrenaline_level': openapi.Schema(type=openapi.TYPE_INTEGER, description='Nivel de adrenalina (1-10)'),
+            'wants_hidden_places': openapi.Schema(type=openapi.TYPE_BOOLEAN,
+                                                  description='Quiere conocer lugares ocultos'),
+        }
+    ),
+    responses={
+        201: openapi.Response(
+            description="Preferencias guardadas exitosamente",
+            examples={
+                "application/json": {
+                    "message": "Preferencias guardadas exitosamente para el usuario 5",
+                    "userId": 5,
+                    "created": True,
+                    "preferences": {
+                        "birth_date": "1990-05-15",
+                        "gender": "Masculino",
+                        "travel_interests": ["Aventura", "Cultura"],
+                        "preferred_environment": "Montañas",
+                        "travel_style": "En pareja",
+                        "budget_range": "351 - 700 USD",
+                        "adrenaline_level": 7,
+                        "wants_hidden_places": True
+                    }
+                }
+            }
+        ),
+        400: "Datos inválidos",
+        500: "Error interno del servidor"
+    }
+)
+def save_user_preferences(request):
+    """
+    Vista para guardar preferencias de usuario usando userId.
+    Si ya existen preferencias, las reemplaza.
+    """
+    try:
+        # Usar el serializer para validar y procesar los datos
+        serializer = UserPreferencesSerializer(data=request.data)
+
+        if serializer.is_valid():
+            # El serializer ya maneja toda la lógica
+            validated_data = serializer.save()
+
+            # Serializar las preferencias para la respuesta
+            preferences_data = UserPreferencesSerializer(validated_data['preferences']).data
+            # Remover user_id del response ya que no es necesario
+            preferences_data.pop('user_id', None)
+
+            response_data = {
+                "message": f"Preferencias {'creadas' if validated_data['created'] else 'actualizadas'} exitosamente para el usuario {validated_data['userId']}",
+                "userId": validated_data['userId'],
+                "created": validated_data['created'],
+                "preferences": preferences_data
+            }
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
+        else:
+            return Response(
+                {"error": "Datos inválidos", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    except Exception as e:
+        print("❌ Error inesperado:", e)
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {"error": "Error interno del servidor", "message": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@swagger_auto_schema(
+    operation_description="Obtener preferencias de usuario",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="ID del usuario",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="Preferencias obtenidas exitosamente",
+            examples={
+                "application/json": {
+                    "userId": 5,
+                    "preferences": {
+                        "birth_date": "1990-05-15",
+                        "gender": "masculino",
+                        "travel_interests": ["Aventura", "Cultura"],
+                        "preferred_environment": "montanas",
+                        "travel_style": "pareja",
+                        "budget_range": "351_700",
+                        "adrenaline_level": 7,
+                        "wants_hidden_places": True,
+                        "age": 34
+                    }
+                }
+            }
+        ),
+        404: "Usuario no encontrado o sin preferencias",
+        500: "Error interno del servidor"
+    }
+)
+def get_user_preferences(request, user_id):
+    """
+    Vista para obtener preferencias de usuario.
+    """
+    try:
+        user = get_object_or_404(User, id=user_id)
+
+        try:
+            preferences = UserPreferences.objects.get(user=user)
+
+            # Serializar las preferencias
+            serializer = UserPreferencesSerializer(preferences)
+            preferences_data = serializer.data
+            preferences_data.pop('user_id', None)  # Remover user_id del response
+
+            return Response({
+                "userId": user.id,
+                "preferences": preferences_data
+            }, status=status.HTTP_200_OK)
+
+        except UserPreferences.DoesNotExist:
+            return Response({
+                "error": "El usuario no tiene preferencias guardadas",
+                "userId": user.id
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

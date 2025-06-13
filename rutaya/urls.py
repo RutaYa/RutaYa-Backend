@@ -13,7 +13,8 @@ from .views import (
     RemoveFromFavoritesView,
     get_home_data,
     save_travel_availability,
-    get_travel_availability
+    get_travel_availability,
+    ProcessIaMessageView
 )
 from . import views
 
@@ -50,6 +51,11 @@ urlpatterns = [
     # En tu urls.py
     path('api/v1/travels/add/', save_travel_availability, name='save-travel-availability'),
     path('api/v1/travels/user/<int:user_id>/', get_travel_availability, name='get-travel-availability'),
+
+    path('api/v1/content/generate/', ProcessIaMessageView.as_view(), name='generate-content'),
+
+    path('api/v1/preferences/', views.save_user_preferences, name='save_user_preferences'),
+    path('api/v1/preferences/<int:user_id>/', views.get_user_preferences, name='get_user_preferences'),
 
 
     # Documentación API

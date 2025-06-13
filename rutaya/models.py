@@ -101,3 +101,26 @@ class Favorite(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.destination.name}"
+
+class UserPreferences(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='preferences'
+    )
+    birth_date = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=50, null=True, blank=True)
+    travel_interests = models.JSONField(default=list)  # Cambio aquí
+    preferred_environment = models.CharField(max_length=50, null=True, blank=True)
+    travel_style = models.CharField(max_length=50, null=True, blank=True)
+    budget_range = models.CharField(max_length=50, null=True, blank=True)
+    adrenaline_level = models.IntegerField(default=5)
+    wants_hidden_places = models.BooleanField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "User Preferences"
+        verbose_name_plural = "User Preferences"
+        db_table = 'user_preferences'
+
+    def __str__(self):
+        return f"Preferencias de {self.user.email}"
