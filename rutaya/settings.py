@@ -83,16 +83,26 @@ WSGI_APPLICATION = 'rutaya.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#         'OPTIONS': {
+#             'timeout': 20,
+#         }
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'OPTIONS': {
-            'timeout': 20,
-        }
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'rutasyadb',
+        'USER': 'rutasyadb_user',
+        'PASSWORD': 'CPc36Hc797f31hEbHTlt3iVzIjwqY7D7',
+        'HOST': 'dpg-d16van2dbo4c73ct87kg-a.oregon-postgres.render.com',
+        'PORT': '5432'
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -138,15 +148,7 @@ SIMPLE_JWT = {
     'VERIFYING_KEY': None,
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
-
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Solo en desarrollo
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Swagger settings
 SWAGGER_SETTINGS = {
@@ -163,11 +165,12 @@ SWAGGER_SETTINGS = {
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
+
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Chicago'
 
-USE_I18N = True
+USE_I18N = False
 
 USE_TZ = True
 
