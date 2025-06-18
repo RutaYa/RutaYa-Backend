@@ -86,6 +86,8 @@ class TourPackage(models.Model):
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_paid = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['start_date']
@@ -95,6 +97,26 @@ class TourPackage(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.start_date}) - {self.user.email}"
+
+class ItineraryItem(models.Model):
+    tour_package = models.ForeignKey(
+        TourPackage,
+        on_delete=models.CASCADE,
+        related_name='itinerary'
+    )
+    datetime = models.CharField(max_length=255)  # Guardamos como string para flexibilidad
+    description = models.TextField()
+    order = models.PositiveIntegerField(default=0)  # Para mantener el orden
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        db_table = 'itinerary_items'
+        verbose_name = 'Itinerary Item'
+        verbose_name_plural = 'Itinerary Items'
+
+    def __str__(self):
+        return f"{self.tour_package.title} - {self.datetime}"
 
 class Destination(models.Model):
     name = models.CharField(max_length=200)

@@ -41,10 +41,77 @@ class UserLoginSerializer(serializers.Serializer):
 
         return attrs
 
+
+class ItineraryItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItineraryItem
+        fields = ['datetime', 'description', 'order']
+
+
 class TourPackageSerializer(serializers.ModelSerializer):
+    itinerary = ItineraryItemSerializer(many=True, required=False)
+    user_id = serializers.IntegerField(write_only=True)
+
     class Meta:
         model = TourPackage
-        fields = '__all__'
+        fields = [
+            'id', 'user_id', 'title', 'description', 'start_date',
+            'days', 'quantity', 'price', 'is_paid', 'itinerary',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        itinerary_data = validated_data.pop('itinerary', [])
+        user_id = validated_data.pop('user_id')
+
+        # Obtener el usuario
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(id=user_id)
+
+        # Crear el tour package
+        tour_package = TourPackage.objects.create(user=user, **validated_data)
+
+        # Crear los itinerary items
+        for index, item_data in enumerate(itinerary_data):
+            ItineraryItem.objects.create(
+                tour_package=tour_package,
+                order=index,
+                **item_data
+            )
+
+        return tour_package
+
+    def update(self, instance, validated_data):
+        itinerary_data = validated_data.pop('itinerary', None)
+
+        # Actualizar los campos del tour package
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Si se proporcionan datos de itinerario, actualizar
+        if itinerary_data is not None:
+            # Eliminar items existentes
+            instance.itinerary.all().delete()
+
+            # Crear nuevos items
+            for index, item_data in enumerate(itinerary_data):
+                ItineraryItem.objects.create(
+                    tour_package=instance,
+                    order=index,
+                    **item_data
+                )
+
+        return instance
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # Formatear la respuesta para que coincida con el frontend
+        representation['user_id'] = instance.user.id
+        representation['start_date'] = instance.start_date.isoformat()
+        return representation
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

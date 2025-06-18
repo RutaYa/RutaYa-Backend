@@ -868,21 +868,148 @@ def save_tour_package(request):
     Vista para guardar un nuevo paquete turístico.
     """
     try:
+        print("📦 Datos recibidos:", request.data)
+
         serializer = TourPackageSerializer(data=request.data)
         if serializer.is_valid():
             package = serializer.save()
+            print("✅ Paquete guardado exitosamente:", package.id)
+
             return Response({
                 "message": "Paquete turístico guardado exitosamente",
                 "package": TourPackageSerializer(package).data
             }, status=status.HTTP_201_CREATED)
         else:
+            print("❌ Errores de validación:", serializer.errors)
             return Response({
                 "error": "Datos inválidos",
                 "details": serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
+    except User.DoesNotExist:
+        print("❌ Usuario no encontrado")
+        return Response({
+            "error": "Usuario no encontrado",
+            "message": "El usuario especificado no existe"
+        }, status=status.HTTP_404_NOT_FOUND)
+
     except Exception as e:
         print("❌ Error inesperado:", e)
+        return Response({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@swagger_auto_schema(
+    operation_description="Obtener paquetes turísticos de un usuario",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="ID del usuario",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="Paquetes turísticos obtenidos exitosamente",
+            examples={
+                "application/json": {
+                    "userId": 5,
+                    "packages": [
+                        {
+                            "id": 1,
+                            "user_id": 5,
+                            "title": "Aventura Inca: Cusco y el Valle Sagrado",
+                            "description": "Un viaje de 5 días explorando...",
+                            "start_date": "2025-07-17",
+                            "days": 5,
+                            "quantity": 2,
+                            "price": "2800.00",
+                            "is_paid": False,
+                            "itinerary": [
+                                {
+                                    "datetime": "2025-07-17",
+                                    "description": "Llegada a Cusco..."
+                                }
+                            ],
+                            "created_at": "2025-06-17T10:30:00Z",
+                            "updated_at": "2025-06-17T10:30:00Z"
+                        }
+                    ],
+                    "total": 1
+                }
+            }
+        ),
+        404: "Usuario no encontrado",
+        500: "Error interno del servidor"
+    }
+)
+def get_user_tour_packages(request, user_id):
+    """
+    Vista para obtener los paquetes turísticos de un usuario.
+    """
+    try:
+        # Verificar que el usuario existe
+        user = get_object_or_404(User, id=user_id)
+
+        # Obtener los paquetes del usuario
+        packages = TourPackage.objects.filter(user=user).prefetch_related('itinerary')
+
+        # Serializar los paquetes
+        serializer = TourPackageSerializer(packages, many=True)
+
+        return Response({
+            "userId": user.id,
+            "packages": serializer.data,
+            "total": packages.count()
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("❌ Error al obtener paquetes:", e)
+        return Response({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@swagger_auto_schema(
+    operation_description="Obtener un paquete turístico específico",
+    manual_parameters=[
+        openapi.Parameter(
+            'package_id',
+            openapi.IN_PATH,
+            description="ID del paquete turístico",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(description="Paquete turístico obtenido exitosamente"),
+        404: "Paquete turístico no encontrado",
+        500: "Error interno del servidor"
+    }
+)
+def get_tour_package(request, package_id):
+    """
+    Vista para obtener un paquete turístico específico.
+    """
+    try:
+        package = get_object_or_404(TourPackage, id=package_id)
+        serializer = TourPackageSerializer(package)
+
+        return Response({
+            "package": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("❌ Error al obtener paquete:", e)
         return Response({
             "error": "Error interno del servidor",
             "message": str(e)
