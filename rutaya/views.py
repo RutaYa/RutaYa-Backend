@@ -14,7 +14,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import User, Category, Destination, Favorite, TravelAvailability
+from .models import *
 from django.db.models import Count
 from rutaya.utils.gemini_api import send_message
 
@@ -114,6 +114,83 @@ class UserLoginView(generics.GenericAPIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class UserUpdateView(generics.UpdateAPIView):
+    """
+    Vista para actualizar información del perfil del usuario
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [AllowAny]  # IMPRESCINDIBLE como indicas
+
+    @swagger_auto_schema(
+        operation_description="Actualizar perfil de usuario",
+        responses={
+            200: openapi.Response(
+                description="Perfil actualizado exitosamente",
+                schema=UserSerializer
+            ),
+            400: "Error de validación",
+            404: "Usuario no encontrado"
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        user_id = self.kwargs.get('pk')
+        user = get_object_or_404(User, pk=user_id)
+
+        serializer = self.get_serializer(user, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'message': 'Perfil actualizado exitosamente',
+                'user': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangePasswordView(APIView):
+    """
+    Vista para cambiar la contraseña del usuario
+    """
+    permission_classes = [AllowAny]  # IMPRESCINDIBLE como indicas
+
+    @swagger_auto_schema(
+        operation_description="Cambiar la contraseña del usuario",
+        manual_parameters=[
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_PATH,
+                description="ID del usuario",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['new_password'],
+            properties={
+                'new_password': openapi.Schema(type=openapi.TYPE_STRING, description='Nueva contraseña'),
+            }
+        ),
+        responses={
+            200: "Contraseña actualizada exitosamente",
+            400: "Error de validación",
+            404: "Usuario no encontrado"
+        }
+    )
+    def put(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+
+        new_password = request.data.get('new_password')
+        if not new_password:
+            return Response({'error': 'La nueva contraseña es obligatoria.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({'message': 'Contraseña actualizada exitosamente'}, status=status.HTTP_200_OK)
 
 
 # Agregar esta vista a tu views.py
@@ -783,6 +860,84 @@ def get_user_preferences(request, user_id):
             "error": "Error interno del servidor",
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def save_tour_package(request):
+    """
+    Vista para guardar un nuevo paquete turístico.
+    """
+    try:
+        serializer = TourPackageSerializer(data=request.data)
+        if serializer.is_valid():
+            package = serializer.save()
+            return Response({
+                "message": "Paquete turístico guardado exitosamente",
+                "package": TourPackageSerializer(package).data
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response({
+                "error": "Datos inválidos",
+                "details": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        print("❌ Error inesperado:", e)
+        return Response({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def mark_package_as_paid(request, pk):
+    """
+    Vista para actualizar el estado de pago de un paquete turístico a True.
+    """
+    try:
+        package = get_object_or_404(TourPackage, pk=pk)
+
+        package.is_paid = True
+        package.save()
+
+        return Response({
+            "message": f"Paquete {pk} marcado como pagado",
+            "package": TourPackageSerializer(package).data
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("❌ Error inesperado:", e)
+        return Response({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_tour_package(request, pk):
+    """
+    Vista para eliminar un paquete turístico.
+    """
+    try:
+        package = get_object_or_404(TourPackage, pk=pk)
+        package.delete()
+
+        return Response({
+            "message": f"Paquete {pk} eliminado correctamente"
+        }, status=status.HTTP_204_NO_CONTENT)
+
+    except Exception as e:
+        print("❌ Error inesperado:", e)
+        return Response({
+            "error": "Error interno del servidor",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

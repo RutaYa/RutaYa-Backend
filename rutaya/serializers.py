@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from .models import User, Category, Destination, TravelAvailability, UserPreferences
+from .models import *
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -41,11 +41,15 @@ class UserLoginSerializer(serializers.Serializer):
 
         return attrs
 
+class TourPackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TourPackage
+        fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone', 'date_joined')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'phone')
         read_only_fields = ('id', 'date_joined')
 
 

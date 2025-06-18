@@ -4,18 +4,7 @@ from django.urls import path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-from .views import (
-    UserRegistrationView,
-    UserLoginView,
-    logout_view,
-    get_categories_with_destinations,
-    AddToFavoritesView,
-    RemoveFromFavoritesView,
-    get_home_data,
-    save_travel_availability,
-    get_travel_availability,
-    ProcessIaMessageView
-)
+from .views import *
 from . import views
 
 # Configuración de Swagger
@@ -40,6 +29,9 @@ urlpatterns = [
     path('api/v1/auth/register/', UserRegistrationView.as_view(), name='user-register'),
     path('api/v1/auth/login/', UserLoginView.as_view(), name='user-login'),
     path('api/v1/auth/logout/', logout_view, name='user-logout'),
+    path('api/v1/user/update/<int:pk>', UserUpdateView.as_view(), name='user-update'),
+    path('api/v1/user/change-password/<int:user_id>', ChangePasswordView.as_view(), name='change-password'),
+
 
     path('api/v1/categories/<int:user_id>/', get_categories_with_destinations, name='categories-destinations'),
 
@@ -56,6 +48,10 @@ urlpatterns = [
 
     path('api/v1/preferences/', views.save_user_preferences, name='save_user_preferences'),
     path('api/v1/preferences/<int:user_id>/', views.get_user_preferences, name='get_user_preferences'),
+
+    path('api/v1/tour/add/', save_tour_package, name='save-tour-package'),
+    path('api/v1/tour/pay/<int:pk>/', mark_package_as_paid, name='mark-package-paid'),
+    path('api/v1/tour/delete/<int:pk>/', delete_tour_package, name='delete-tour-package'),
 
 
     # Documentación API
