@@ -3,6 +3,11 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from .models import *
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+import pytz
+from datetime import datetime
+from .models import TourPackage, ItineraryItem
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -43,23 +48,63 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class ItineraryItemSerializer(serializers.ModelSerializer):
+    datetime = serializers.CharField(max_length=255)  # Campo como string
+
     class Meta:
         model = ItineraryItem
         fields = ['datetime', 'description', 'order']
 
+    def validate_datetime(self, value):
+        """
+        Validación básica del formato de datetime como string
+        """
+        if not isinstance(value, str):
+            raise serializers.ValidationError("El datetime debe ser una cadena de texto")
+
+        if not value.strip():
+            raise serializers.ValidationError("El datetime no puede estar vacío")
+
+        # Validación opcional: verificar que tenga un formato mínimo válido
+        # Puedes comentar esto si quieres total flexibilidad
+        if 'T' not in value and ':' not in value:
+            raise serializers.ValidationError(
+                "El formato debe incluir fecha y hora (ej: 2025-07-17T08:00 o 2025-07-17 08:00)"
+            )
+
+        return value.strip()
+
 
 class TourPackageSerializer(serializers.ModelSerializer):
     itinerary = ItineraryItemSerializer(many=True, required=False)
+    start_date = serializers.CharField(max_length=255)  # Campo como string
     user_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = TourPackage
         fields = [
             'id', 'user_id', 'title', 'description', 'start_date',
-            'days', 'quantity', 'price', 'is_paid', 'itinerary',
-            'created_at', 'updated_at'
+            'days', 'quantity', 'price', 'is_paid', 'itinerary'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id']
+
+    def validate_start_date(self, value):
+        """
+        Validación básica del formato de start_date como string
+        """
+        if not isinstance(value, str):
+            raise serializers.ValidationError("El start_date debe ser una cadena de texto")
+
+        if not value.strip():
+            raise serializers.ValidationError("El start_date no puede estar vacío")
+
+        # Validación opcional: verificar que tenga un formato mínimo válido
+        # Puedes comentar esto si quieres total flexibilidad
+        if 'T' not in value and ':' not in value:
+            raise serializers.ValidationError(
+                "El formato debe incluir fecha y hora (ej: 2025-07-17T08:00 o 2025-07-17 08:00)"
+            )
+
+        return value.strip()
 
     def create(self, validated_data):
         itinerary_data = validated_data.pop('itinerary', [])
@@ -106,12 +151,104 @@ class TourPackageSerializer(serializers.ModelSerializer):
 
         return instance
 
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        # Formatear la respuesta para que coincida con el frontend
-        representation['user_id'] = instance.user.id
-        representation['start_date'] = instance.start_date.isoformat()
-        return representation
+
+class TourPackageSerializer(serializers.ModelSerializer):
+    itinerary = ItineraryItemSerializer(many=True, required=False)
+    start_date = serializers.CharField()  # Cambiar a CharField para manejar manualmente
+    user_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = TourPackage
+        fields = [
+            'id', 'user_id', 'title', 'description', 'start_date',
+            'days', 'quantity', 'price', 'is_paid', 'itinerary'
+        ]
+        read_only_fields = ['id']
+
+    def validate_start_date(self, value):
+        """
+        Validar y convertir start_date con formatos flexibles
+        """
+        if isinstance(value, str):
+            # Lista de formatos posibles
+            formats_to_try = [
+                '%Y-%m-%dT%H:%M:%S',  # 2025-07-17T08:00:00
+                '%Y-%m-%dT%H:%M',  # 2025-07-17T08:00
+                '%Y-%m-%dT%H:%M:%S%z',  # 2025-07-17T08:00:00+00:00
+                '%Y-%m-%dT%H:%M%z',  # 2025-07-17T08:00+00:00
+            ]
+
+            parsed_datetime = None
+            for fmt in formats_to_try:
+                try:
+                    parsed_datetime = datetime.strptime(value, fmt)
+                    break
+                except ValueError:
+                    continue
+
+            if parsed_datetime is None:
+                # Intentar con el parser de Django
+                parsed_datetime = parse_datetime(value)
+
+            if parsed_datetime is None:
+                raise serializers.ValidationError(
+                    f"Formato de fecha inválido: {value}. "
+                    "Use formatos como: YYYY-MM-DDTHH:MM o YYYY-MM-DDTHH:MM:SS"
+                )
+
+            # Asegurar que tenga timezone (Lima/Perú)
+            if timezone.is_naive(parsed_datetime):
+                lima_tz = pytz.timezone('America/Lima')
+                parsed_datetime = lima_tz.localize(parsed_datetime)
+
+            return parsed_datetime
+
+        return value
+
+    def create(self, validated_data):
+        itinerary_data = validated_data.pop('itinerary', [])
+        user_id = validated_data.pop('user_id')
+
+        # Obtener el usuario
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(id=user_id)
+
+        # Crear el tour package
+        tour_package = TourPackage.objects.create(user=user, **validated_data)
+
+        # Crear los itinerary items
+        for index, item_data in enumerate(itinerary_data):
+            ItineraryItem.objects.create(
+                tour_package=tour_package,
+                order=index,
+                **item_data
+            )
+
+        return tour_package
+
+    def update(self, instance, validated_data):
+        itinerary_data = validated_data.pop('itinerary', None)
+
+        # Actualizar los campos del tour package
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Si se proporcionan datos de itinerario, actualizar
+        if itinerary_data is not None:
+            # Eliminar items existentes
+            instance.itinerary.all().delete()
+
+            # Crear nuevos items
+            for index, item_data in enumerate(itinerary_data):
+                ItineraryItem.objects.create(
+                    tour_package=instance,
+                    order=index,
+                    **item_data
+                )
+
+        return instance
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

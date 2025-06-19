@@ -49,6 +49,7 @@ urlpatterns = [
     path('api/v1/preferences/', views.save_user_preferences, name='save_user_preferences'),
     path('api/v1/preferences/<int:user_id>/', views.get_user_preferences, name='get_user_preferences'),
 
+    path('api/v1/tour/user/<int:user_id>/', views.get_user_tour_packages, name='get_user_tour_package'),
     path('api/v1/tour/add/', save_tour_package, name='save-tour-package'),
     path('api/v1/tour/pay/<int:pk>/', mark_package_as_paid, name='mark-package-paid'),
     path('api/v1/tour/delete/<int:pk>/', delete_tour_package, name='delete-tour-package'),

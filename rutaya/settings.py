@@ -13,6 +13,11 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+TIME_ZONE = 'America/Lima'  # Timezone de Perú
+USE_TZ = True  # Habilitar soporte de timezone
+USE_I18N = True
+USE_L10N = True
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -132,6 +137,13 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S%z',
+    'DATETIME_INPUT_FORMATS': [
+        '%Y-%m-%dT%H:%M:%S%z',
+        '%Y-%m-%dT%H:%M:%S.%f%z',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%dT%H:%M:%S.%f',
+    ],
 }
 
 AUTH_USER_MODEL = 'rutaya.User'

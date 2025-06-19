@@ -81,16 +81,14 @@ class TourPackage(models.Model):
     )
     title = models.CharField(max_length=255)
     description = models.TextField()
-    start_date = models.DateField()
+    start_date = models.CharField(max_length=255)  # Cambiado a CharField
     days = models.PositiveIntegerField()
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_paid = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['start_date']
+        ordering = ['start_date']  # Nota: el ordering alfabético podría no ser cronológico
         db_table = 'tour_packages'
         verbose_name = 'Tour Package'
         verbose_name_plural = 'Tour Packages'
@@ -98,19 +96,19 @@ class TourPackage(models.Model):
     def __str__(self):
         return f"{self.title} ({self.start_date}) - {self.user.email}"
 
+
 class ItineraryItem(models.Model):
     tour_package = models.ForeignKey(
         TourPackage,
         on_delete=models.CASCADE,
         related_name='itinerary'
     )
-    datetime = models.CharField(max_length=255)  # Guardamos como string para flexibilidad
+    datetime = models.CharField(max_length=255)  # Cambiado a CharField
     description = models.TextField()
-    order = models.PositiveIntegerField(default=0)  # Para mantener el orden
-    created_at = models.DateTimeField(auto_now_add=True)
+    order = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ['order', 'id']
+        ordering = ['order', 'id']  # Mantenemos el orden por 'order' que es numérico
         db_table = 'itinerary_items'
         verbose_name = 'Itinerary Item'
         verbose_name_plural = 'Itinerary Items'

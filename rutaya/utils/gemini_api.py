@@ -39,7 +39,7 @@ def send_message(data):
         IMPORTANTE: Si el usuario te dice que ya puedes generar el paquete de viaje, entonces responderás en formato JSON con los siguientes campos:
         - title: Título atractivo del paquete
         - description: Descripción general del viaje
-        - start_date: Fecha y hora de inicio (formato: YYYY-MM-DDTHH:MM)
+        - start_date: YYYY-MM-DDTHH:MM
         - days: Número de días del viaje
         - quantity: Número de personas
         - price: Precio total en soles peruanos
@@ -48,18 +48,20 @@ def send_message(data):
         El itinerario debe seguir esta estructura:
         [
           {
-            "datetime": "2025-07-17T08:00",
+            "datetime": YYYY-MM-DDTHH:MM,
             "description": "Salida desde Lima hacia Cusco - Vuelo de mañana"
           },
           {
-            "datetime": "2025-07-17T14:00", 
+            "datetime": YYYY-MM-DDTHH:MM,
             "description": "Llegada a Cusco - Check-in hotel y almuerzo"
           },
           {
-            "datetime": "2025-07-17T16:00",
+            "datetime": YYYY-MM-DDTHH:MM,
             "description": "City tour por el centro histórico de Cusco"
           }
         ]
+        
+        ES IMPORTANTE QUE LAS FECHAS SEAN EN YYYY-MM-DDTHH:MM,
 
         REGLAS PARA EL ITINERARIO:
         - Para viajes de 1-2 días: Itinerario detallado por hora

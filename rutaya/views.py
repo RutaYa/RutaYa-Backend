@@ -864,9 +864,6 @@ def get_user_preferences(request, user_id):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def save_tour_package(request):
-    """
-    Vista para guardar un nuevo paquete turístico.
-    """
     try:
         print("📦 Datos recibidos:", request.data)
 
@@ -901,6 +898,7 @@ def save_tour_package(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @swagger_auto_schema(
@@ -916,34 +914,7 @@ def save_tour_package(request):
     ],
     responses={
         200: openapi.Response(
-            description="Paquetes turísticos obtenidos exitosamente",
-            examples={
-                "application/json": {
-                    "userId": 5,
-                    "packages": [
-                        {
-                            "id": 1,
-                            "user_id": 5,
-                            "title": "Aventura Inca: Cusco y el Valle Sagrado",
-                            "description": "Un viaje de 5 días explorando...",
-                            "start_date": "2025-07-17",
-                            "days": 5,
-                            "quantity": 2,
-                            "price": "2800.00",
-                            "is_paid": False,
-                            "itinerary": [
-                                {
-                                    "datetime": "2025-07-17",
-                                    "description": "Llegada a Cusco..."
-                                }
-                            ],
-                            "created_at": "2025-06-17T10:30:00Z",
-                            "updated_at": "2025-06-17T10:30:00Z"
-                        }
-                    ],
-                    "total": 1
-                }
-            }
+            description="Lista de paquetes turísticos obtenidos exitosamente"
         ),
         404: "Usuario no encontrado",
         500: "Error interno del servidor"
@@ -952,6 +923,7 @@ def save_tour_package(request):
 def get_user_tour_packages(request, user_id):
     """
     Vista para obtener los paquetes turísticos de un usuario.
+    Retorna directamente la lista de paquetes sin wrapper.
     """
     try:
         # Verificar que el usuario existe
@@ -963,53 +935,11 @@ def get_user_tour_packages(request, user_id):
         # Serializar los paquetes
         serializer = TourPackageSerializer(packages, many=True)
 
-        return Response({
-            "userId": user.id,
-            "packages": serializer.data,
-            "total": packages.count()
-        }, status=status.HTTP_200_OK)
+        # Retornar directamente la lista sin wrapper
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Exception as e:
         print("❌ Error al obtener paquetes:", e)
-        return Response({
-            "error": "Error interno del servidor",
-            "message": str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-@swagger_auto_schema(
-    operation_description="Obtener un paquete turístico específico",
-    manual_parameters=[
-        openapi.Parameter(
-            'package_id',
-            openapi.IN_PATH,
-            description="ID del paquete turístico",
-            type=openapi.TYPE_INTEGER,
-            required=True
-        )
-    ],
-    responses={
-        200: openapi.Response(description="Paquete turístico obtenido exitosamente"),
-        404: "Paquete turístico no encontrado",
-        500: "Error interno del servidor"
-    }
-)
-def get_tour_package(request, package_id):
-    """
-    Vista para obtener un paquete turístico específico.
-    """
-    try:
-        package = get_object_or_404(TourPackage, id=package_id)
-        serializer = TourPackageSerializer(package)
-
-        return Response({
-            "package": serializer.data
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        print("❌ Error al obtener paquete:", e)
         return Response({
             "error": "Error interno del servidor",
             "message": str(e)
