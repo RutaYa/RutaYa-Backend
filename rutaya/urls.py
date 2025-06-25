@@ -40,6 +40,8 @@ urlpatterns = [
     path('api/v1/favorites/add/', AddToFavoritesView.as_view(), name='add-favorite'),
     path('api/v1/favorites/remove/', RemoveFromFavoritesView.as_view(), name='remove-favorite'),
 
+    path('api/v1/community/list/', GetAllRatesView.as_view(), name='community-list'),
+
     path('api/v1/rate-destinations/add/', CreateDestinationRateView.as_view(), name='rate-destination'),
     path('api/v1/rate-destinations/list/', GetAllDestinationRatesView.as_view(), name='get-destinations-rates'),
     path('api/v1/rate-destinations/remove/', DeleteDestinationRateView.as_view(), name='remove-destination-rate'),

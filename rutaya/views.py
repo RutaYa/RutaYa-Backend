@@ -1199,6 +1199,30 @@ class DeleteTourPackageRateView(APIView):
                 'error': 'Calificación no encontrada'
             }, status=status.HTTP_404_NOT_FOUND)
 
+class GetAllRatesView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="Obtener todas las calificaciones de destinos y paquetes turísticos",
+        responses={
+            200: openapi.Response(
+                description="Lista de calificaciones de destinos y paquetes turísticos"
+            )
+        }
+    )
+    def get(self, request):
+        destination_rates = DestinationRate.objects.all()
+        package_rates = TourPackageRate.objects.all()
+
+        destination_serializer = DestinationRateSerializer(destination_rates, many=True)
+        package_serializer = TourPackageRateSerializer(package_rates, many=True)
+
+        return Response({
+            'destination_rates': destination_serializer.data,
+            'package_rates': package_serializer.data
+        }, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @swagger_auto_schema(
