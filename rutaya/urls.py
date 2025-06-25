@@ -40,6 +40,15 @@ urlpatterns = [
     path('api/v1/favorites/add/', AddToFavoritesView.as_view(), name='add-favorite'),
     path('api/v1/favorites/remove/', RemoveFromFavoritesView.as_view(), name='remove-favorite'),
 
+    path('api/v1/rate-destinations/add/', CreateDestinationRateView.as_view(), name='rate-destination'),
+    path('api/v1/rate-destinations/remove/', GetAllDestinationRatesView.as_view(), name='get-destinations-rates'),
+    path('api/v1/rate-destinations/remove/', DeleteDestinationRateView.as_view(), name='remove-destination-rate'),
+
+    path('api/v1/rate-package/add/', CreateTourPackageRateView.as_view(), name='rate-package'),
+    path('api/v1/rate-package/remove/', GetAllTourPackageRatesView.as_view(), name='get-package-rates'),
+    path('api/v1/rate-package/remove/', DeleteTourPackageRateView.as_view(), name='remove-package-rate'),
+
+
     # En tu urls.py
     path('api/v1/travels/add/', save_travel_availability, name='save-travel-availability'),
     path('api/v1/travels/user/<int:user_id>/', get_travel_availability, name='get-travel-availability'),

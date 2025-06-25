@@ -356,3 +356,109 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
             'preferences': preferences,
             'created': created
         }
+
+
+# Agregar estos serializers a tu archivo serializers.py existente
+
+# Serializers para crear calificaciones (POST)
+class DestinationRateCreateSerializer(serializers.ModelSerializer):
+    userId = serializers.IntegerField(write_only=True)
+    destinationId = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = DestinationRate
+        fields = ['userId', 'destinationId', 'stars', 'comment', 'created_at']
+
+    def validate_userId(self, value):
+        if not User.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Usuario no encontrado.")
+        return value
+
+    def validate_destinationId(self, value):
+        if not Destination.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Destino no encontrado.")
+        return value
+
+    def create(self, validated_data):
+        user_id = validated_data.pop('userId')
+        destination_id = validated_data.pop('destinationId')
+
+        user = User.objects.get(id=user_id)
+        destination = Destination.objects.get(id=destination_id)
+
+        rate = DestinationRate.objects.create(
+            user=user,
+            destination=destination,
+            **validated_data
+        )
+        return rate
+
+
+class TourPackageRateCreateSerializer(serializers.ModelSerializer):
+    userId = serializers.IntegerField(write_only=True)
+    tourPackageId = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = TourPackageRate
+        fields = ['userId', 'tourPackageId', 'stars', 'comment', 'created_at']
+
+    def validate_userId(self, value):
+        if not User.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Usuario no encontrado.")
+        return value
+
+    def validate_tourPackageId(self, value):
+        if not TourPackage.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Paquete turístico no encontrado.")
+        return value
+
+    def create(self, validated_data):
+        user_id = validated_data.pop('userId')
+        tour_package_id = validated_data.pop('tourPackageId')
+
+        user = User.objects.get(id=user_id)
+        tour_package = TourPackage.objects.get(id=tour_package_id)
+
+        rate = TourPackageRate.objects.create(
+            user=user,
+            tour_package=tour_package,
+            **validated_data
+        )
+        return rate
+
+
+# Serializers para mostrar calificaciones (GET)
+class DestinationRateSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    destination = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DestinationRate
+        fields = ['id', 'user', 'destination', 'stars', 'comment', 'created_at']
+
+    def get_destination(self, obj):
+        return {
+            'id': obj.destination.id,
+            'name': obj.destination.name,
+            'location': obj.destination.location,
+            'image_url': obj.destination.image_url
+        }
+
+
+class TourPackageRateSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    tour_package = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TourPackageRate
+        fields = ['id', 'user', 'tour_package', 'stars', 'comment', 'created_at']
+
+    def get_tour_package(self, obj):
+        return {
+            'id': obj.tour_package.id,
+            'title': obj.tour_package.title,
+            'description': obj.tour_package.description,
+            'start_date': obj.tour_package.start_date,
+            'days': obj.tour_package.days,
+            'price': obj.tour_package.price
+        }

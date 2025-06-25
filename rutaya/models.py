@@ -167,3 +167,56 @@ class UserPreferences(models.Model):
 
     def __str__(self):
         return f"Preferencias de {self.user.email}"
+
+# Agregar estos modelos a tu archivo models.py existente
+
+class DestinationRate(models.Model):
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.CASCADE,
+        related_name='rates'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='destination_rates'
+    )
+    stars = models.IntegerField()
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ('destination', 'user')
+        ordering = ['-id']
+        db_table = 'destination_rates'
+        verbose_name = 'Destination Rate'
+        verbose_name_plural = 'Destination Rates'
+
+    def __str__(self):
+        return f"{self.destination.name} - {self.stars} estrellas por {self.user.email}"
+
+
+class TourPackageRate(models.Model):
+    tour_package = models.ForeignKey(
+        TourPackage,
+        on_delete=models.CASCADE,
+        related_name='rates'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='tour_package_rates'
+    )
+    stars = models.IntegerField()
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ('tour_package', 'user')
+        ordering = ['-id']
+        db_table = 'tour_package_rates'
+        verbose_name = 'Tour Package Rate'
+        verbose_name_plural = 'Tour Package Rates'
+
+    def __str__(self):
+        return f"{self.tour_package.title} - {self.stars} estrellas por {self.user.email}"

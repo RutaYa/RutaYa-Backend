@@ -209,36 +209,7 @@ class ChangePasswordView(APIView):
     ],
     responses={
         200: openapi.Response(
-            description="Categorías con destinos obtenidas exitosamente",
-            examples={
-                "application/json": {
-                    "message": "Categorías obtenidas exitosamente",
-                    "categories": [
-                        {
-                            "id": 1,
-                            "name": "Playas",
-                            "destinations": [
-                                {
-                                    "id": 1,
-                                    "name": "Playa Bonita",
-                                    "location": "Cancún",
-                                    "description": "Una hermosa playa con aguas cristalinas",
-                                    "image_url": "https://example.com/playa.jpg",
-                                    "isFavorite": True
-                                },
-                                {
-                                    "id": 2,
-                                    "name": "Playa del Carmen",
-                                    "location": "Riviera Maya",
-                                    "description": "Playa con ambiente nocturno",
-                                    "image_url": "https://example.com/carmen.jpg",
-                                    "isFavorite": False
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
+            description="Categorías con destinos obtenidas exitosamente"
         ),
         404: "Usuario no encontrado"
     }
@@ -361,12 +332,6 @@ def get_categories_with_destinations(request, user_id):
     }
 )
 def get_home_data(request, user_id):
-    """
-    Vista consolidada para obtener todos los datos del home:
-    - Sugerencias para ti (8 destinos random)
-    - Más populares (4 destinos más agregados a favoritos)
-    - Categorías con destinos ordenadas por ID
-    """
     try:
         # Verificar que el usuario existe
         user = get_object_or_404(User, id=user_id)
@@ -995,6 +960,244 @@ def delete_tour_package(request, pk):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class CreateDestinationRateView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=DestinationRateCreateSerializer,
+        operation_description="Crear calificación para un destino",
+        responses={
+            201: openapi.Response(
+                description="Calificación creada exitosamente"
+            ),
+            400: "Error de validación o calificación ya existe",
+        }
+    )
+    def post(self, request):
+        serializer = DestinationRateCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_id = serializer.validated_data['userId']
+        destination_id = serializer.validated_data['destinationId']
+
+        user = User.objects.get(id=user_id)
+        destination = Destination.objects.get(id=destination_id)
+
+        if DestinationRate.objects.filter(user=user, destination=destination).exists():
+            return Response({
+                'error': 'Ya has calificado este destino'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        rate = serializer.save()
+
+        return Response({
+            'message': 'Calificación creada exitosamente',
+            'rate': {
+                'id': rate.id,
+                'userId': user.id,
+                'destinationId': destination.id,
+                'stars': rate.stars,
+                'comment': rate.comment,
+                'created_at': rate.created_at,
+                'destination_name': destination.name,
+                'user_email': user.email
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class GetAllDestinationRatesView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="Obtener todas las calificaciones de destinos",
+        responses={
+            200: openapi.Response(
+                description="Lista de calificaciones de destinos"
+            )
+        }
+    )
+    def get(self, request):
+        rates = DestinationRate.objects.all()
+        serializer = DestinationRateSerializer(rates, many=True)
+        return Response({
+            'rates': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class DeleteDestinationRateView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                'destinationId': openapi.Schema(type=openapi.TYPE_INTEGER),
+            }
+        ),
+        operation_description="Eliminar calificación de un destino",
+        responses={
+            200: openapi.Response(
+                description="Calificación eliminada exitosamente"
+            ),
+            400: "Error de validación",
+            404: "Calificación no encontrada"
+        }
+    )
+    def delete(self, request):
+        serializer = FavoriteActionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_id = serializer.validated_data['userId']
+        destination_id = serializer.validated_data['destinationId']
+
+        user = User.objects.get(id=user_id)
+        destination = Destination.objects.get(id=destination_id)
+
+        try:
+            rate = DestinationRate.objects.get(user=user, destination=destination)
+            rate.delete()
+
+            return Response({
+                'message': 'Calificación eliminada exitosamente',
+                'removed': {
+                    'userId': user.id,
+                    'destinationId': destination.id,
+                    'destination_name': destination.name,
+                    'user_email': user.email
+                }
+            }, status=status.HTTP_200_OK)
+
+        except DestinationRate.DoesNotExist:
+            return Response({
+                'error': 'Calificación no encontrada'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+# Vistas para TourPackageRate
+class CreateTourPackageRateView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=TourPackageRateCreateSerializer,
+        operation_description="Crear calificación para un paquete turístico",
+        responses={
+            201: openapi.Response(
+                description="Calificación creada exitosamente"
+            ),
+            400: "Error de validación o calificación ya existe",
+        }
+    )
+    def post(self, request):
+        serializer = TourPackageRateCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_id = serializer.validated_data['userId']
+        tour_package_id = serializer.validated_data['tourPackageId']
+
+        user = User.objects.get(id=user_id)
+        tour_package = TourPackage.objects.get(id=tour_package_id)
+
+        if TourPackageRate.objects.filter(user=user, tour_package=tour_package).exists():
+            return Response({
+                'error': 'Ya has calificado este paquete turístico'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        rate = serializer.save()
+
+        return Response({
+            'message': 'Calificación creada exitosamente',
+            'rate': {
+                'id': rate.id,
+                'userId': user.id,
+                'tourPackageId': tour_package.id,
+                'stars': rate.stars,
+                'comment': rate.comment,
+                'created_at': rate.created_at,
+                'tour_package_title': tour_package.title,
+                'user_email': user.email
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class GetAllTourPackageRatesView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="Obtener todas las calificaciones de paquetes turísticos",
+        responses={
+            200: openapi.Response(
+                description="Lista de calificaciones de paquetes turísticos"
+            )
+        }
+    )
+    def get(self, request):
+        rates = TourPackageRate.objects.all()
+        serializer = TourPackageRateSerializer(rates, many=True)
+        return Response({
+            'rates': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class DeleteTourPackageRateView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                'tourPackageId': openapi.Schema(type=openapi.TYPE_INTEGER),
+            }
+        ),
+        operation_description="Eliminar calificación de un paquete turístico",
+        responses={
+            200: openapi.Response(
+                description="Calificación eliminada exitosamente"
+            ),
+            400: "Error de validación",
+            404: "Calificación no encontrada"
+        }
+    )
+    def delete(self, request):
+        # Crear un serializer temporal para validar los datos
+        serializer_data = {
+            'userId': request.data.get('userId'),
+            'destinationId': request.data.get('tourPackageId')  # Reutilizamos el serializer existente
+        }
+        serializer = FavoriteActionSerializer(data=serializer_data)
+        if not serializer.is_valid():
+            return Response({
+                'error': 'Datos inválidos'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user_id = request.data.get('userId')
+        tour_package_id = request.data.get('tourPackageId')
+
+        user = User.objects.get(id=user_id)
+        tour_package = TourPackage.objects.get(id=tour_package_id)
+
+        try:
+            rate = TourPackageRate.objects.get(user=user, tour_package=tour_package)
+            rate.delete()
+
+            return Response({
+                'message': 'Calificación eliminada exitosamente',
+                'removed': {
+                    'userId': user.id,
+                    'tourPackageId': tour_package.id,
+                    'tour_package_title': tour_package.title,
+                    'user_email': user.email
+                }
+            }, status=status.HTTP_200_OK)
+
+        except TourPackageRate.DoesNotExist:
+            return Response({
+                'error': 'Calificación no encontrada'
+            }, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -1003,9 +1206,6 @@ def delete_tour_package(request, pk):
     responses={200: "Logout exitoso"}
 )
 def logout_view(request):
-    """
-    Vista para logout - invalida el refresh token
-    """
     try:
         refresh_token = request.data["refresh"]
         token = RefreshToken(refresh_token)
