@@ -151,105 +151,6 @@ class TourPackageSerializer(serializers.ModelSerializer):
 
         return instance
 
-
-class TourPackageSerializer(serializers.ModelSerializer):
-    itinerary = ItineraryItemSerializer(many=True, required=False)
-    start_date = serializers.CharField()  # Cambiar a CharField para manejar manualmente
-    user_id = serializers.IntegerField(write_only=True)
-
-    class Meta:
-        model = TourPackage
-        fields = [
-            'id', 'user_id', 'title', 'description', 'start_date',
-            'days', 'quantity', 'price', 'is_paid', 'itinerary'
-        ]
-        read_only_fields = ['id']
-
-    def validate_start_date(self, value):
-        """
-        Validar y convertir start_date con formatos flexibles
-        """
-        if isinstance(value, str):
-            # Lista de formatos posibles
-            formats_to_try = [
-                '%Y-%m-%dT%H:%M:%S',  # 2025-07-17T08:00:00
-                '%Y-%m-%dT%H:%M',  # 2025-07-17T08:00
-                '%Y-%m-%dT%H:%M:%S%z',  # 2025-07-17T08:00:00+00:00
-                '%Y-%m-%dT%H:%M%z',  # 2025-07-17T08:00+00:00
-            ]
-
-            parsed_datetime = None
-            for fmt in formats_to_try:
-                try:
-                    parsed_datetime = datetime.strptime(value, fmt)
-                    break
-                except ValueError:
-                    continue
-
-            if parsed_datetime is None:
-                # Intentar con el parser de Django
-                parsed_datetime = parse_datetime(value)
-
-            if parsed_datetime is None:
-                raise serializers.ValidationError(
-                    f"Formato de fecha inválido: {value}. "
-                    "Use formatos como: YYYY-MM-DDTHH:MM o YYYY-MM-DDTHH:MM:SS"
-                )
-
-            # Asegurar que tenga timezone (Lima/Perú)
-            if timezone.is_naive(parsed_datetime):
-                lima_tz = pytz.timezone('America/Lima')
-                parsed_datetime = lima_tz.localize(parsed_datetime)
-
-            return parsed_datetime
-
-        return value
-
-    def create(self, validated_data):
-        itinerary_data = validated_data.pop('itinerary', [])
-        user_id = validated_data.pop('user_id')
-
-        # Obtener el usuario
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        user = User.objects.get(id=user_id)
-
-        # Crear el tour package
-        tour_package = TourPackage.objects.create(user=user, **validated_data)
-
-        # Crear los itinerary items
-        for index, item_data in enumerate(itinerary_data):
-            ItineraryItem.objects.create(
-                tour_package=tour_package,
-                order=index,
-                **item_data
-            )
-
-        return tour_package
-
-    def update(self, instance, validated_data):
-        itinerary_data = validated_data.pop('itinerary', None)
-
-        # Actualizar los campos del tour package
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        # Si se proporcionan datos de itinerario, actualizar
-        if itinerary_data is not None:
-            # Eliminar items existentes
-            instance.itinerary.all().delete()
-
-            # Crear nuevos items
-            for index, item_data in enumerate(itinerary_data):
-                ItineraryItem.objects.create(
-                    tour_package=instance,
-                    order=index,
-                    **item_data
-                )
-
-        return instance
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -441,6 +342,7 @@ class DestinationRateSerializer(serializers.ModelSerializer):
             'id': obj.destination.id,
             'name': obj.destination.name,
             'location': obj.destination.location,
+            'description': obj.destination.description,
             'image_url': obj.destination.image_url
         }
 
@@ -454,11 +356,15 @@ class TourPackageRateSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'tour_package', 'stars', 'comment', 'created_at']
 
     def get_tour_package(self, obj):
+        itinerary = ItineraryItemSerializer(obj.tour_package.itinerary.all(), many=True).data
         return {
             'id': obj.tour_package.id,
             'title': obj.tour_package.title,
             'description': obj.tour_package.description,
             'start_date': obj.tour_package.start_date,
+            'quantity': obj.tour_package.quantity,
             'days': obj.tour_package.days,
-            'price': obj.tour_package.price
+            'price': obj.tour_package.price,
+            'is_paid': obj.tour_package.is_paid,
+            'itinerary': itinerary
         }
