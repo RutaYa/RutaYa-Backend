@@ -1029,51 +1029,28 @@ class DeleteDestinationRateView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
-                'destinationId': openapi.Schema(type=openapi.TYPE_INTEGER),
-            }
-        ),
-        operation_description="Eliminar calificación de un destino",
+        operation_description="Eliminar calificación de un destino por ID",
         responses={
-            200: openapi.Response(
-                description="Calificación eliminada exitosamente"
-            ),
-            400: "Error de validación",
+            200: openapi.Response(description="Calificación eliminada exitosamente"),
             404: "Calificación no encontrada"
         }
     )
-    def delete(self, request):
-        serializer = FavoriteActionSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        user_id = serializer.validated_data['userId']
-        destination_id = serializer.validated_data['destinationId']
-
-        user = User.objects.get(id=user_id)
-        destination = Destination.objects.get(id=destination_id)
-
+    def delete(self, request, rate_id):
         try:
-            rate = DestinationRate.objects.get(user=user, destination=destination)
+            rate = DestinationRate.objects.get(id=rate_id)
             rate.delete()
-
             return Response({
                 'message': 'Calificación eliminada exitosamente',
                 'removed': {
-                    'userId': user.id,
-                    'destinationId': destination.id,
-                    'destination_name': destination.name,
-                    'user_email': user.email
+                    'id': rate_id,
+                    'userId': rate.user.id,
+                    'destinationId': rate.destination.id,
+                    'destination_name': rate.destination.name,
+                    'user_email': rate.user.email
                 }
             }, status=status.HTTP_200_OK)
-
         except DestinationRate.DoesNotExist:
-            return Response({
-                'error': 'Calificación no encontrada'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Calificación no encontrada'}, status=status.HTTP_404_NOT_FOUND)
 
 
 # Vistas para TourPackageRate
@@ -1146,58 +1123,29 @@ class DeleteTourPackageRateView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
-                'tourPackageId': openapi.Schema(type=openapi.TYPE_INTEGER),
-            }
-        ),
-        operation_description="Eliminar calificación de un paquete turístico",
+        operation_description="Eliminar calificación de un paquete turístico por ID",
         responses={
-            200: openapi.Response(
-                description="Calificación eliminada exitosamente"
-            ),
-            400: "Error de validación",
+            200: openapi.Response(description="Calificación eliminada exitosamente"),
             404: "Calificación no encontrada"
         }
     )
-    def delete(self, request):
-        # Crear un serializer temporal para validar los datos
-        serializer_data = {
-            'userId': request.data.get('userId'),
-            'destinationId': request.data.get('tourPackageId')  # Reutilizamos el serializer existente
-        }
-        serializer = FavoriteActionSerializer(data=serializer_data)
-        if not serializer.is_valid():
-            return Response({
-                'error': 'Datos inválidos'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        user_id = request.data.get('userId')
-        tour_package_id = request.data.get('tourPackageId')
-
-        user = User.objects.get(id=user_id)
-        tour_package = TourPackage.objects.get(id=tour_package_id)
-
+    def delete(self, request, rate_id):
         try:
-            rate = TourPackageRate.objects.get(user=user, tour_package=tour_package)
+            rate = TourPackageRate.objects.get(id=rate_id)
             rate.delete()
-
             return Response({
                 'message': 'Calificación eliminada exitosamente',
                 'removed': {
-                    'userId': user.id,
-                    'tourPackageId': tour_package.id,
-                    'tour_package_title': tour_package.title,
-                    'user_email': user.email
+                    'id': rate_id,
+                    'userId': rate.user.id,
+                    'tourPackageId': rate.tour_package.id,
+                    'tour_package_title': rate.tour_package.title,
+                    'user_email': rate.user.email
                 }
             }, status=status.HTTP_200_OK)
-
         except TourPackageRate.DoesNotExist:
-            return Response({
-                'error': 'Calificación no encontrada'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Calificación no encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
 
 class GetAllRatesView(APIView):
     permission_classes = [AllowAny]
